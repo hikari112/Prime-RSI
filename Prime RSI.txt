@@ -1,0 +1,204 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © peacefulLizard50262
+
+//@version=5
+indicator("Prime RSI")
+
+import lastguru/DominantCycle/2 as d
+
+grad(values)=>
+    switch values
+        39 => #6ef057
+        38 => #77ec56
+        37 => #7fe854
+        36 => #86e553
+        35 => #8ce151
+        34 => #92dd50
+        33 => #98d94f
+        32 => #9ed54d
+        31 => #a3d14c
+        30 => #a7ce4b
+        29 => #acca49
+        28 => #b0c648
+        27 => #b4c247
+        26 => #b8be46
+        25 => #bcb944
+        24 => #bfb543
+        23 => #c3b142
+        22 => #c6ad41
+        21 => #c9a93f
+        20 => #cca43e
+        19 => #cfa03d
+        18 => #d29c3c
+        17 => #d4973b
+        16 => #d79239
+        15 => #d98e38
+        14 => #dc8937
+        13 => #de8436
+        12 => #e07f35
+        11 => #e37934
+        10 => #e57433
+        9 =>  #e76e32
+        8 =>  #e96931
+        7 =>  #ea6230
+        6 =>  #ec5c2f
+        5 =>  #ee552e
+        4 =>  #f04d2d
+        3 =>  #f1452c
+        2 =>  #f33b2c
+        1 =>  #f5302b
+        0 =>  #f6212a
+
+ema(source)=>
+    var float ema = 0.0
+    var int count = 0
+    count := nz(count[1]) + 1
+    ema := (1.0 - 2.0 / (count + 1.0)) * nz(ema[1]) + 2.0 / (count + 1.0) * source
+    ema
+
+atan2(y, x) =>
+    var float angle = 0.0
+    if x > 0
+        angle := math.atan(y / x)
+    else
+        if x < 0 and y >= 0
+            angle := math.atan(y / x) + math.pi
+        else
+            if x < 0 and y < 0
+                angle := math.atan(y / x) - math.pi
+            else
+                if x == 0 and y > 0
+                    angle := math.pi / 2
+                else
+                    if x == 0 and y < 0
+                        angle := -math.pi / 2
+    angle
+
+
+// Custom cosh function
+cosh(float x) =>
+    (math.exp(x) + math.exp(-x)) / 2
+
+// Custom acosh function
+acosh(float x) =>
+    x < 1 ? na : math.log(x + math.sqrt(x * x - 1))
+
+// Custom sinh function
+sinh(float x) =>
+    (math.exp(x) - math.exp(-x)) / 2
+
+// Custom asinh function
+asinh(float x) =>
+    math.log(x + math.sqrt(x * x + 1))
+
+// Custom inverse tangent function
+atan(float x) =>
+    math.pi / 2 - math.atan(1 / x)
+
+// Chebyshev Type I Moving Average
+chebyshevI(float src, float len, float ripple) =>
+    a = 0.
+    b = 0.
+    g = 0.
+    chebyshev = 0.
+    
+    a := cosh(1 / len * acosh(1 / (1 - ripple)))
+    b := sinh(1 / len * asinh(1 / ripple))
+    g := (a - b) / (a + b)
+    chebyshev := (1 - g) * src + g * nz(chebyshev[1])
+    chebyshev
+
+degrees(float source) =>
+    source * 180 / math.pi
+
+trend_angle(source, length, smoothing_length, smoothing_ripple) =>
+    atr = ema(ta.highest(source, length) - ta.lowest(source, length))
+    slope = (source - source[length]) / (atr/(length) * length)
+    angle_rad = atan2(slope, 1)
+    degrees = chebyshevI(degrees(angle_rad), smoothing_length, smoothing_ripple)
+    normalized = int((90 + degrees)/180 * 39)
+
+ha_close(float Open = open, float High = high, float Low = low, float Close = close, bool enable = true) =>
+    ha_close = (Open + High + Low + Close) / 4
+    out = enable == true ? ha_close : Close
+ 
+ha_open(float Open = open, float High = high, float Low = low, float Close = close, bool enable = true) =>
+    ha_open  = float(na)
+    ha_close = ha_close(Open, High, Low, Close)
+    ha_open := na(ha_open[1]) ? (Open + Close) / 2 : (nz(ha_open[1]) + nz(ha_close[1])) / 2 
+    out = enable == true ? ha_open : Open
+
+ha_high(float Open = open, float High = high, float Low = low, float Close = close, bool enable = true) =>
+    ha_close = ha_close(Open, High, Low, Close)
+    ha_open  = ha_open(Open, High, Low, Close)
+    ha_high  = math.max(High, math.max(ha_open, ha_close))
+    out = enable == true ? ha_high : High
+
+ha_low(float Open = open, float High = high, float Low = low, float Close = close, bool enable = true) =>
+    ha_close = ha_close(Open, High, Low, Close)
+    ha_open  = ha_open(Open, High, Low, Close)
+    ha_low = math.min(Low,  math.min(ha_open, ha_close))
+    out = enable == true ? ha_low : Low
+
+rsi(source = close, length = 14, smoothing = 3)=>
+    close_filtered = chebyshevI(source, smoothing, 0.5)
+    up = math.max(ta.change(close_filtered), 0)
+    down = -math.min(ta.change(close_filtered), 0)
+    up_filtered = chebyshevI(up, length, 0.5)
+    down_filtered = chebyshevI(down, length, 0.5)
+    rsi = down_filtered == 0 ? 100 : 100 - (100 / (1 + up_filtered / down_filtered))
+
+ema(float source = close, float length = 9)=>
+    alpha = 2 / (length + 1)
+    var float smoothed = na
+    smoothed := alpha * source + (1 - alpha) * nz(smoothed[1])
+
+length(source, harmonic)=>
+    cycle = math.round(d.mamaPeriod(source, 1, 2048))
+    var cycles = array.new<float>(1)
+    var count_cycles = array.new<int>(1)
+    if not array.includes(cycles, cycle)
+        array.push(cycles, cycle)
+        array.push(count_cycles, 1)
+
+    else
+        index = array.indexof(cycles, cycle)
+        array.set(count_cycles, index, array.get(count_cycles, index) + 1)
+
+    max_index = array.indexof(count_cycles, array.max(count_cycles))
+    max_cycle = array.get(cycles, max_index) * harmonic
+
+length = input.float(24, "Length", 3, 500, 0.5)
+smoothing = input.float(3, "Smoothing", 1, 500, 0.25)
+harmonic = input.int(1, "MA Length", 1)
+
+rsi_open = rsi(open, length, smoothing)
+rsi_high = rsi(high, length, smoothing)
+rsi_low = rsi(low, length, smoothing)
+rsi_close = rsi(close, length, smoothing)
+
+ha_close = ha_close(rsi_open, rsi_high, rsi_low, rsi_close, true)
+ha_open = ha_open(rsi_open, rsi_high, rsi_low, rsi_close, true)
+ha_high = ha_high(rsi_open, rsi_high, rsi_low, rsi_close, true)
+ha_low = ha_low(rsi_open, rsi_high, rsi_low, rsi_close, true)
+
+OHLC4 = math.avg(ha_close, ha_open, ha_high, ha_low)
+
+ma_length = length(OHLC4, harmonic)
+aema = chebyshevI(OHLC4, ma_length, 0.05)
+
+aema_colour = grad(trend_angle(aema, 4, 2, 0.5))
+
+bullish_color = #26a69a
+bearish_color = #ef5350
+
+colour = ha_close > ha_open ? bullish_color : bearish_color
+
+plotcandle(ha_open, ha_high, ha_low, ha_close, "RSI HA Candles", colour, colour, bordercolor = colour)
+plot(aema, "MA", aema_colour, 2)
+
+top = hline(70)
+hline(50)
+bottom = hline(30)
+
+fill(top, bottom, color = color.new(color.blue, 90))
