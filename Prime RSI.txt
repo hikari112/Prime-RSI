@@ -316,15 +316,15 @@ length(source, harmonic)=>
     max_index = array.indexof(count_cycles, array.max(count_cycles))
     max_cycle = array.get(cycles, max_index) * harmonic
 
-style = input.string("Candle With Patterns", "Style", ["Candle", "Candle With Patterns", "Heikin Ashi", "Line"])
-
+style = input.string("Candle With Patterns", "Style", ["Candle", "Candle With Patterns", "Heikin Ashi", "Line"], inline = "Style")
+color_candles = input.bool(false, "Colorize", "Color the candles bassed on the RSI value.", "Style")
 ashi = style == "Heikin Ashi"
 not_line = style != "Line"
 length = input.float(24, "Length", 3, 500, 0.5)
 smoothing = input.float(3, "Smoothing", 1, 500, 0.25)
 enable_ma = input.bool(true, "Auto MA", inline = "MA")
 harmonic = input.int(1, "", 1, inline = "MA")
-colour_enable = input.bool(false, "Color Candles", "Enable this to color the chart's candles.")
+colour_enable = input.bool(false, "Color Candles Overlay", "Enable this to color the chart's candles.")
 
 rsi_open = rsi(open, length, smoothing)
 rsi_high = rsi(high, length, smoothing)
@@ -338,6 +338,8 @@ ha_low = ha_low(rsi_open, rsi_high, rsi_low, rsi_close, ashi)
 
 OHLC4 = math.avg(ha_close, ha_open, ha_high, ha_low)
  
+grad_100 = grad_100(ha_close)
+
 ma_length = length(OHLC4, harmonic)
 aema = chebyshevI(OHLC4, ma_length, 0.05)
 
@@ -347,7 +349,7 @@ bullish_color = #26a69a
 bearish_color = #ef5350
 alpha = color.new(color.black, 100)
 
-colour = ha_close > ha_open ? bullish_color : bearish_color
+colour = color_candles ? grad_100 : ha_close > ha_open ? bullish_color : bearish_color
 
 [engulfing_bearish, engulfing_bullish, morning_star_bullish, evening_star_bearish] = patterns(ha_open, ha_high, ha_low, ha_close, OHLC4, aema)
 
@@ -371,7 +373,7 @@ plotcandle(not_line ? ha_open : na, not_line ? ha_high : na, not_line ? ha_low :
 plot(not not_line ? OHLC4 : na, "RSI Line", #7352FF, 2)
 plot(enable_ma ? aema : na, "MA", aema_colour, 2)
 
-barcolor(colour_enable ? grad_100(ha_close) : na)
+barcolor(colour_enable ? grad_100 : na)
 
 top = hline(70)
 hline(50)
