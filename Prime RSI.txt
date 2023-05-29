@@ -370,7 +370,7 @@ if evening_star_bearish and style == "Candle With Patterns"
     line.new(bar_index, 100, bar_index, 0, color = color.new(color.gray, 50), style = line.style_dashed)
 
 plotcandle(not_line ? ha_open : na, not_line ? ha_high : na, not_line ? ha_low : na, not_line ? ha_close : na, "RSI HA Candles", colour, colour, bordercolor = colour)
-plot(not not_line ? OHLC4 : na, "RSI Line", #7352FF, 2)
+plot(not not_line ? OHLC4 : na, "RSI Line", color_candles ? grad_100 : #7352FF, 2)
 plot(enable_ma ? aema : na, "MA", aema_colour, 2)
 
 barcolor(colour_enable ? grad_100 : na)
